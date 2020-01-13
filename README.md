@@ -1,2 +1,2 @@
 # dapla-helidon-application
-Application bootstrapping and configuration framework
+Minimal Application interfaces to facilitate easy reuse and testing.

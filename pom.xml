@@ -25,6 +25,10 @@
             <artifactId>helidon-grpc-server</artifactId>
         </dependency>
         <dependency>
+            <groupId>no.ssb.helidon</groupId>
+            <artifactId>helidon-media-protobuf-json-server</artifactId>
+        </dependency>
+        <dependency>
             <groupId>no.ssb.jpms</groupId>
             <artifactId>jsr305-and-javax.annotation-api</artifactId>
         </dependency>

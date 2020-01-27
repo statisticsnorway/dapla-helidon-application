@@ -53,7 +53,6 @@ public class Tracing {
                 .asChildOf(spanContext)
                 .start();
         tracer.scopeManager().activate(span);
-        traceInputMessage(span, message);
         return span;
     }
 

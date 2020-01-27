@@ -12,7 +12,11 @@ import java.util.Map;
 
 public class AuthorizationInterceptor implements ServerInterceptor {
 
-    static final ThreadLocal<String> tokenThreadLocal = new ThreadLocal<>();
+    private static final ThreadLocal<String> tokenThreadLocal = new ThreadLocal<>();
+
+    public static String token() {
+        return tokenThreadLocal.get();
+    }
 
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {

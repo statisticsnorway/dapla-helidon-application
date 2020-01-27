@@ -33,6 +33,10 @@ public class Tracing {
         span.log(Map.of("event", "debug-output", "data", message));
     }
 
+    public static void logError(Span span, Throwable e) {
+        logError(span, e, "error");
+    }
+
     public static void logError(Span span, Throwable e, String event) {
         StringWriter stringWriter = new StringWriter();
         e.printStackTrace(new PrintWriter(stringWriter));

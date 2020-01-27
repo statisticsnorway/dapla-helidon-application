@@ -15,7 +15,6 @@ import java.util.Map;
 public class Tracing {
 
     public static <T extends MessageOrBuilder> T traceInputMessage(Span span, T message) {
-        span.log(Map.of("event", "debug-input", "data", message.toString()));
         traceInputMessage(span, message.toString());
         return message;
     }

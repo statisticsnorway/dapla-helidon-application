@@ -43,11 +43,19 @@ public class Tracing {
     }
 
     public static <T extends MessageOrBuilder> Span spanFromGrpc(T message, String operationName) {
+        Tracer tracer = GlobalTracer.get();
+        if (tracer.scopeManager().activeSpan() != null) {
+            Span span = tracer
+                    .buildSpan(operationName)
+                    .asChildOf(tracer.scopeManager().activeSpan())
+                    .start();
+            tracer.scopeManager().activate(span);
+            return span;
+        }
         SpanContext spanContext = Contexts.context()
                 .get()
                 .get(SpanContext.class)
                 .get();
-        Tracer tracer = GlobalTracer.get();
         Span span = tracer
                 .buildSpan(operationName)
                 .asChildOf(spanContext)

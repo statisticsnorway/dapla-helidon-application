@@ -42,8 +42,20 @@ public class Tracing {
         span.log(Map.of("event", event, "message", e.getMessage(), "stacktrace", stringWriter.toString()));
     }
 
-    public static <T extends MessageOrBuilder> Span spanFromGrpc(T message, String operationName) {
+    public static Tracer tracer() {
         Tracer tracer = GlobalTracer.get();
+        if (tracer != null) {
+            return tracer;
+        }
+        tracer = Contexts.context().get().get(Tracer.class).get();
+        if (tracer == null) {
+            throw new IllegalStateException("A Tracer has not been assigned to the Helidon Contexts context");
+        }
+        return tracer;
+    }
+
+    public static <T extends MessageOrBuilder> Span spanFromGrpc(T message, String operationName) {
+        Tracer tracer = tracer();
         if (tracer.scopeManager().activeSpan() != null) {
             Span span = tracer
                     .buildSpan(operationName)

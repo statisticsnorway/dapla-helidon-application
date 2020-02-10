@@ -1,32 +1,55 @@
 package no.ssb.helidon.application;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.Descriptors;
 import io.grpc.BindableService;
+import io.grpc.Channel;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.MethodType;
 import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
-import io.grpc.stub.StreamObserver;
+import io.grpc.stub.AbstractStub;
 import io.helidon.common.http.Http;
 import io.helidon.webserver.Handler;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.Service;
 import io.opentracing.Span;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.Deque;
-import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 public class HelidonGrpcWebTranscoding implements Service {
 
     private static final Logger LOG = LoggerFactory.getLogger(HelidonGrpcWebTranscoding.class);
 
+    static class StubCacheEntry {
+        final AbstractStub<?> futureStub;
+        final Method method;
+
+        StubCacheEntry(AbstractStub<?> futureStub, Method method) {
+            this.futureStub = futureStub;
+            this.method = method;
+        }
+    }
+
+    final Supplier<Channel> channelSupplier;
     final BindableService[] grpcServices;
 
-    public HelidonGrpcWebTranscoding(BindableService... grpcServices) {
+    final AtomicReference<Channel> channelRef = new AtomicReference<>();
+    final Map<String, StubCacheEntry> stubByPathPattern = new ConcurrentHashMap<>();
+
+    public HelidonGrpcWebTranscoding(Supplier<Channel> channelSupplier, BindableService... grpcServices) {
+        this.channelSupplier = channelSupplier;
         this.grpcServices = grpcServices;
     }
 
@@ -37,65 +60,79 @@ public class HelidonGrpcWebTranscoding implements Service {
                 MethodDescriptor<?, ?> grpcMethodDescriptor = smd.getMethodDescriptor();
                 ProtoMethodDescriptorSupplier pmds = (ProtoMethodDescriptorSupplier) grpcMethodDescriptor.getSchemaDescriptor();
                 Descriptors.MethodDescriptor protobufMethodDescriptor = pmds.getMethodDescriptor();
+                String methodName = protobufMethodDescriptor.getName();
                 if (MethodType.UNARY.equals(grpcMethodDescriptor.getType())) {
                     Descriptors.Descriptor inputType = protobufMethodDescriptor.getInputType();
                     String inputClassFullJavaName = inputType.getFile().getOptions().getJavaPackage() + "." + inputType.getName();
+                    String clientClazzFullJavaName = inputType.getFile().getOptions().getJavaPackage() + "." + grpcMethodDescriptor.getServiceName() + "Grpc";
                     Class<?> inputClazz;
+                    Class<?> clientClazz;
+                    Method createFutureStubMethod;
                     try {
                         inputClazz = Class.forName(inputClassFullJavaName);
-                    } catch (ClassNotFoundException e) {
+                        clientClazz = Class.forName(clientClazzFullJavaName);
+                        createFutureStubMethod = clientClazz.getDeclaredMethod("newFutureStub", Channel.class);
+                    } catch (NoSuchMethodException | ClassNotFoundException e) {
                         throw new RuntimeException(e);
                     }
-                    rules.post(Handler.create(inputClazz, ((req, res, entity) -> {
+                    String pathPattern = String.format("/%s/%s", grpcMethodDescriptor.getServiceName(), methodName);
+                    rules.post(pathPattern, Handler.create(inputClazz, ((req, res, entity) -> {
+                        Span span = Tracing.spanFromHttp(req, "transcoding-" + methodName);
                         try {
-                            Class<? extends BindableService> aClass = grpcService.getClass();
-                            String methodName = protobufMethodDescriptor.getName();
-                            Method[] declaredMethods = aClass.getDeclaredMethods();
-                            Method method = null;
-                            for (Method declaredMethod : declaredMethods) {
-                                if (!Modifier.isStatic(declaredMethod.getModifiers()) && Modifier.isPublic(declaredMethod.getModifiers())) {
-                                    // TODO add check that method returns void
-                                    method = declaredMethod;
-                                }
-                            }
-                            Span span = Tracing.spanFromHttp(req, "transcoding-" + methodName);
-                            method.invoke(grpcService, entity, new StreamObserver<>() {
-                                final Deque<Object> result = new ConcurrentLinkedDeque<>();
-
-                                @Override
-                                public void onNext(Object value) {
-                                    result.add(value);
-                                }
-
-                                @Override
-                                public void onError(Throwable t) {
-                                    try {
-                                        res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
-                                        Tracing.logError(span, t);
-                                    } finally {
-                                        span.finish();
+                            StubCacheEntry stubCacheEntry = stubByPathPattern.computeIfAbsent(pathPattern, k -> {
+                                try {
+                                    if (channelRef.get() == null) {
+                                        channelRef.compareAndSet(null, channelSupplier.get());
                                     }
-                                }
-
-                                @Override
-                                public void onCompleted() {
-                                    try {
-                                        if (result.isEmpty()) {
-                                            res.send(null);
-                                        } else {
-                                            Object first = result.getFirst();
-                                            res.send(first);
-                                        }
-                                    } finally {
-                                        span.finish();
-                                    }
+                                    AbstractStub<?> stub = ((AbstractStub<?>) createFutureStubMethod.invoke(null, channelRef.get()))
+                                            .withDeadlineAfter(1, TimeUnit.SECONDS);
+                                    Class<? extends AbstractStub> clientFutureStubClazz = stub.getClass();
+                                    Method method = clientFutureStubClazz.getDeclaredMethod(methodName, inputClazz);
+                                    return new StubCacheEntry(stub, method);
+                                } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+                                    throw new RuntimeException(e);
                                 }
                             });
-                        } catch (IllegalAccessException | InvocationTargetException e) {
-                            throw new RuntimeException(e);
+                            GrpcAuthorizationBearerCallCredentials authorizationBearer = GrpcAuthorizationBearerCallCredentials.from(req.headers());
+                            ListenableFuture<?> listenableFuture = (ListenableFuture<?>) stubCacheEntry.method.invoke(stubCacheEntry.futureStub.withCallCredentials(authorizationBearer), entity);
+                            Futures.addCallback(
+                                    listenableFuture,
+                                    new FutureCallback() {
+                                        @Override
+                                        public void onSuccess(@Nullable Object result) {
+                                            try {
+                                                res.send(result);
+                                            } finally {
+                                                span.finish();
+                                            }
+                                        }
+
+                                        @Override
+                                        public void onFailure(Throwable t) {
+                                            try {
+                                                LOG.error("while serving path " + pathPattern, t);
+                                                res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
+                                                Tracing.logError(span, t);
+                                            } finally {
+                                                span.finish();
+                                            }
+                                        }
+                                    },
+                                    MoreExecutors.directExecutor()
+                            );
+                        } catch (Throwable t) {
+                            try {
+                                LOG.error("while serving path " + pathPattern, t);
+                                res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
+                                Tracing.logError(span, t);
+                            } finally {
+                                span.finish();
+                            }
                         }
                     })));
                     LOG.debug("Mapped http-to-grpc transcoding method: {}", grpcMethodDescriptor.getFullMethodName());
+                } else {
+                    LOG.info("Transcoding http-to-grpc does not support grpc method-type {} for method {}", grpcMethodDescriptor.getType(), methodName);
                 }
             });
         }

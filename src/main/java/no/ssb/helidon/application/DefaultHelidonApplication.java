@@ -63,8 +63,8 @@ public abstract class DefaultHelidonApplication implements HelidonApplication {
     }
 
     public CompletionStage<HelidonApplication> start() {
-        return ofNullable(get(WebServer.class)).map(WebServer::start).orElse(CompletableFuture.completedFuture(null))
-                .thenCombine(ofNullable(get(GrpcServer.class)).map(GrpcServer::start).orElse(CompletableFuture.completedFuture(null)), (webServer, grpcServer) -> this);
+        return ofNullable(get(GrpcServer.class)).map(GrpcServer::start).orElse(CompletableFuture.completedFuture(null))
+                .thenCombine(ofNullable(get(WebServer.class)).map(WebServer::start).orElse(CompletableFuture.completedFuture(null)), (grpcServer, webServer) -> this);
     }
 
     public CompletionStage<HelidonApplication> stop() {

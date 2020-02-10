@@ -130,9 +130,9 @@ public class HelidonGrpcWebTranscoding implements Service {
                             }
                         }
                     })));
-                    LOG.debug("Mapped http-to-grpc transcoding method: {}", grpcMethodDescriptor.getFullMethodName());
+                    LOG.info("Mapped http-to-grpc transcoding method: {}", grpcMethodDescriptor.getFullMethodName());
                 } else {
-                    LOG.info("Transcoding http-to-grpc does not support grpc method-type {} for method {}", grpcMethodDescriptor.getType(), methodName);
+                    LOG.warn("Transcoding http-to-grpc does not support grpc method-type {} for method {}", grpcMethodDescriptor.getType(), methodName);
                 }
             });
         }

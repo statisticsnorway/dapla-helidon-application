@@ -103,7 +103,7 @@ public class HelidonGrpcWebTranscoding implements Service {
                                         channelRef.compareAndSet(null, tracingInterceptor.intercept(channelSupplier.get()));
                                     }
                                     AbstractStub<?> stub = ((AbstractStub<?>) createFutureStubMethod.invoke(null, channelRef.get()))
-                                            .withDeadlineAfter(1, TimeUnit.SECONDS);
+                                            .withDeadlineAfter(30, TimeUnit.SECONDS);
                                     Class<? extends AbstractStub> clientFutureStubClazz = stub.getClass();
                                     Method method = clientFutureStubClazz.getDeclaredMethod(methodName, inputClazz);
                                     return new StubCacheEntry(stub, method);

@@ -81,12 +81,12 @@ public class HelidonGrpcWebTranscoding implements Service {
                     String pathPattern = String.format("/%s/%s", grpcMethodDescriptor.getServiceName(), methodName);
                     rules.post(pathPattern, Handler.create(inputClazz, ((req, res, entity) -> {
                         TracerAndSpan tracerAndSpan = Tracing.spanFromHttp(req, "transcoding-" + methodName);
+                        Tracer tracer = tracerAndSpan.tracer();
                         Span span = tracerAndSpan.span();
                         try {
                             StubCacheEntry stubCacheEntry = stubByPathPattern.computeIfAbsent(pathPattern, k -> {
                                 try {
                                     if (channelRef.get() == null) {
-                                        Tracer tracer = Tracing.tracer();
                                         TracingClientInterceptor tracingInterceptor = TracingClientInterceptor.newBuilder()
                                                 .withTracer(tracer)
                                                 .withStreaming()

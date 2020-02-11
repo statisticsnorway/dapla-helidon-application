@@ -49,7 +49,7 @@ public class Tracing {
         restoreTracingContext(tracerAndSpan.tracer, tracerAndSpan.span);
     }
 
-    public static Tracer tracer() {
+    public static <T extends MessageOrBuilder> TracerAndSpan spanFromGrpc(T message, String operationName) {
         Tracer tracer = Contexts
                 .context()
                 .get()
@@ -58,11 +58,6 @@ public class Tracing {
         if (tracer == null) {
             throw new IllegalStateException("A Tracer has not been assigned to the Helidon Contexts context");
         }
-        return tracer;
-    }
-
-    public static <T extends MessageOrBuilder> TracerAndSpan spanFromGrpc(T message, String operationName) {
-        Tracer tracer = tracer();
         SpanContext spanContext = Contexts.context()
                 .get()
                 .get(SpanContext.class)

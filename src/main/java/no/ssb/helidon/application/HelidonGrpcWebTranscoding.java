@@ -16,6 +16,9 @@ import io.helidon.webserver.Handler;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.Service;
 import io.opentracing.Span;
+import io.opentracing.Tracer;
+import io.opentracing.contrib.grpc.OperationNameConstructor;
+import io.opentracing.contrib.grpc.TracingClientInterceptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,12 +80,27 @@ public class HelidonGrpcWebTranscoding implements Service {
                     }
                     String pathPattern = String.format("/%s/%s", grpcMethodDescriptor.getServiceName(), methodName);
                     rules.post(pathPattern, Handler.create(inputClazz, ((req, res, entity) -> {
-                        Span span = Tracing.spanFromHttp(req, "transcoding-" + methodName);
+                        TracerAndSpan tracerAndSpan = Tracing.spanFromHttp(req, "transcoding-" + methodName);
+                        Span span = tracerAndSpan.span();
                         try {
                             StubCacheEntry stubCacheEntry = stubByPathPattern.computeIfAbsent(pathPattern, k -> {
                                 try {
                                     if (channelRef.get() == null) {
-                                        channelRef.compareAndSet(null, channelSupplier.get());
+                                        Tracer tracer = Tracing.tracer();
+                                        TracingClientInterceptor tracingInterceptor = TracingClientInterceptor.newBuilder()
+                                                .withTracer(tracer)
+                                                .withStreaming()
+                                                .withVerbosity()
+                                                .withOperationName(new OperationNameConstructor() {
+                                                    @Override
+                                                    public <ReqT, RespT> String constructOperationName(MethodDescriptor<ReqT, RespT> method) {
+                                                        return "Transcoding to local Grpc " + method.getFullMethodName();
+                                                    }
+                                                })
+                                                .withActiveSpanSource(() -> tracer.scopeManager().activeSpan())
+                                                .withTracedAttributes(TracingClientInterceptor.ClientRequestAttribute.ALL_CALL_OPTIONS, TracingClientInterceptor.ClientRequestAttribute.HEADERS)
+                                                .build();
+                                        channelRef.compareAndSet(null, tracingInterceptor.intercept(channelSupplier.get()));
                                     }
                                     AbstractStub<?> stub = ((AbstractStub<?>) createFutureStubMethod.invoke(null, channelRef.get()))
                                             .withDeadlineAfter(1, TimeUnit.SECONDS);
@@ -100,6 +118,7 @@ public class HelidonGrpcWebTranscoding implements Service {
                                     new FutureCallback() {
                                         @Override
                                         public void onSuccess(@Nullable Object result) {
+                                            Tracing.restoreTracingContext(tracerAndSpan);
                                             try {
                                                 res.send(result);
                                             } finally {
@@ -110,6 +129,7 @@ public class HelidonGrpcWebTranscoding implements Service {
                                         @Override
                                         public void onFailure(Throwable t) {
                                             try {
+                                                Tracing.restoreTracingContext(tracerAndSpan);
                                                 LOG.error("while serving path " + pathPattern, t);
                                                 res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                                                 Tracing.logError(span, t);

@@ -20,7 +20,8 @@ public class AuthorizationInterceptor implements ServerInterceptor {
 
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
-        Span span = Tracing.spanFromGrpc(null, "AuthorizationInterceptor");
+        TracerAndSpan tracerAndSpan = Tracing.spanFromGrpc(null, "AuthorizationInterceptor");
+        Span span = tracerAndSpan.span();
         try {
             String authorization = headers.get(Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER));
             String token;

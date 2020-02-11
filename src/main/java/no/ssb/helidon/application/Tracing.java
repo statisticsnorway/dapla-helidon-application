@@ -6,7 +6,6 @@ import io.helidon.webserver.ServerRequest;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
-import io.opentracing.util.GlobalTracer;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -42,28 +41,28 @@ public class Tracing {
         span.log(Map.of("event", event, "message", e.getMessage(), "stacktrace", stringWriter.toString()));
     }
 
+    public static void restoreTracingContext(Tracer tracer, Span span) {
+        tracer.scopeManager().activate(span);
+    }
+
+    public static void restoreTracingContext(TracerAndSpan tracerAndSpan) {
+        restoreTracingContext(tracerAndSpan.tracer, tracerAndSpan.span);
+    }
+
     public static Tracer tracer() {
-        Tracer tracer = GlobalTracer.get();
-        if (tracer != null) {
-            return tracer;
-        }
-        tracer = Contexts.context().get().get(Tracer.class).get();
+        Tracer tracer = Contexts
+                .context()
+                .get()
+                .get(Tracer.class)
+                .get();
         if (tracer == null) {
             throw new IllegalStateException("A Tracer has not been assigned to the Helidon Contexts context");
         }
         return tracer;
     }
 
-    public static <T extends MessageOrBuilder> Span spanFromGrpc(T message, String operationName) {
+    public static <T extends MessageOrBuilder> TracerAndSpan spanFromGrpc(T message, String operationName) {
         Tracer tracer = tracer();
-        if (tracer.scopeManager().activeSpan() != null) {
-            Span span = tracer
-                    .buildSpan(operationName)
-                    .asChildOf(tracer.scopeManager().activeSpan())
-                    .start();
-            tracer.scopeManager().activate(span);
-            return span;
-        }
         SpanContext spanContext = Contexts.context()
                 .get()
                 .get(SpanContext.class)
@@ -73,10 +72,10 @@ public class Tracing {
                 .asChildOf(spanContext)
                 .start();
         tracer.scopeManager().activate(span);
-        return span;
+        return new TracerAndSpan(tracer, span);
     }
 
-    public static Span spanFromHttp(ServerRequest request, String operationName) {
+    public static TracerAndSpan spanFromHttp(ServerRequest request, String operationName) {
         SpanContext spanContext = request.spanContext();
         Tracer tracer = request.tracer();
         Span span = tracer
@@ -84,6 +83,6 @@ public class Tracing {
                 .asChildOf(spanContext)
                 .start();
         tracer.scopeManager().activate(span);
-        return span;
+        return new TracerAndSpan(tracer, span);
     }
 }

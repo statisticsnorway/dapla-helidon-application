@@ -9,6 +9,7 @@ import io.opentracing.Tracer;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class Tracing {
@@ -39,6 +40,25 @@ public class Tracing {
         StringWriter stringWriter = new StringWriter();
         e.printStackTrace(new PrintWriter(stringWriter));
         span.log(Map.of("event", event, "message", e.getMessage(), "stacktrace", stringWriter.toString()));
+    }
+
+    public static void logError(Span span, Throwable e, String event, String... fields) {
+        Map<String, String> map = new LinkedHashMap<>();
+        for (int i = 0; i < fields.length; i += 2) {
+            map.put(fields[i], fields[i + 2]);
+        }
+        logError(span, e, event, map);
+    }
+
+    public static void logError(Span span, Throwable e, String event, Map<String, String> fields) {
+        StringWriter stringWriter = new StringWriter();
+        e.printStackTrace(new PrintWriter(stringWriter));
+        Map<String, String> map = new LinkedHashMap<>();
+        map.put("event", event);
+        map.put("message", e.getMessage());
+        map.put("stacktrace", stringWriter.toString());
+        map.putAll(fields);
+        span.log(map);
     }
 
     public static void restoreTracingContext(Tracer tracer, Span span) {

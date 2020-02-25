@@ -4,9 +4,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>no.ssb.dapla</groupId>
-        <artifactId>parent</artifactId>
-        <version>1</version>
+        <groupId>io.helidon.applications</groupId>
+        <artifactId>helidon-se</artifactId>
+        <version>1.4.1</version>
         <relativePath/>
     </parent>
 
@@ -14,6 +14,14 @@
     <artifactId>helidon-application</artifactId>
     <version>0.2-SNAPSHOT</version>
     <name>${project.artifactId}</name>
+
+    <properties>
+        <jdk.version>11</jdk.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <helidon.version>1.4.1</helidon.version>
+        <slf4j.version>1.7.30</slf4j.version>
+    </properties>
 
     <repositories>
         <repository>
@@ -36,26 +44,103 @@
         <dependency>
             <groupId>io.helidon.webserver</groupId>
             <artifactId>helidon-webserver</artifactId>
+            <version>${helidon.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>javax.annotation-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.helidon.grpc</groupId>
             <artifactId>helidon-grpc-server</artifactId>
+            <version>${helidon.version}</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>grpc-core</artifactId>
+                    <groupId>io.grpc</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>grpc-api</artifactId>
+                    <groupId>io.grpc</groupId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.code.findbugs</groupId>
+                    <artifactId>jsr305</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>javax.annotation-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.google.api.grpc</groupId>
+                    <artifactId>proto-google-common-protos</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>no.ssb.jpms</groupId>
             <artifactId>jsr305-and-javax.annotation-api</artifactId>
+            <version>1.1</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jul-to-slf4j</artifactId>
+            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
         </dependency>
     </dependencies>
+
+    <build>
+        <!-- restore default maven final artifact name -->
+        <finalName>${project.artifactId}-${project.version}</finalName>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>2.19.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.8.1</version>
+                    <configuration>
+                        <release>${jdk.version}</release>
+                        <testRelease>${jdk.version}</testRelease>
+                        <target>${jdk.version}</target>
+                        <source>${jdk.version}</source>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>ssb-bip</id>
+            <distributionManagement>
+                <repository>
+                    <id>ssb-bip-releases</id>
+                    <name>SSB Nexus Releases</name>
+                    <url>https://nexus.prod-bip-ci.ssb.no/repository/maven-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>ssb-bip-snapshots</id>
+                    <name>SSB Snapshot Repository</name>
+                    <url>https://nexus.prod-bip-ci.ssb.no/repository/maven-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+    </profiles>
 </project>

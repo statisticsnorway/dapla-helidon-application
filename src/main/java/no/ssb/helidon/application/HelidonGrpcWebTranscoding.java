@@ -102,8 +102,7 @@ public class HelidonGrpcWebTranscoding implements Service {
                                                 .build();
                                         channelRef.compareAndSet(null, tracingInterceptor.intercept(channelSupplier.get()));
                                     }
-                                    AbstractStub<?> stub = ((AbstractStub<?>) createFutureStubMethod.invoke(null, channelRef.get()))
-                                            .withDeadlineAfter(30, TimeUnit.SECONDS);
+                                    AbstractStub<?> stub = ((AbstractStub<?>) createFutureStubMethod.invoke(null, channelRef.get()));
                                     Class<? extends AbstractStub> clientFutureStubClazz = stub.getClass();
                                     Method method = clientFutureStubClazz.getDeclaredMethod(methodName, inputClazz);
                                     return new StubCacheEntry(stub, method);
@@ -112,7 +111,12 @@ public class HelidonGrpcWebTranscoding implements Service {
                                 }
                             });
                             GrpcAuthorizationBearerCallCredentials authorizationBearer = GrpcAuthorizationBearerCallCredentials.from(req.headers());
-                            ListenableFuture<?> listenableFuture = (ListenableFuture<?>) stubCacheEntry.method.invoke(stubCacheEntry.futureStub.withCallCredentials(authorizationBearer), entity);
+                            ListenableFuture<?> listenableFuture = (ListenableFuture<?>) stubCacheEntry.method.invoke(
+                                    stubCacheEntry.futureStub
+                                            .withDeadlineAfter(30, TimeUnit.SECONDS)
+                                            .withCallCredentials(authorizationBearer),
+                                    entity
+                            );
                             Futures.addCallback(
                                     listenableFuture,
                                     new FutureCallback() {

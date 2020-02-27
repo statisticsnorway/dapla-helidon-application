@@ -45,7 +45,7 @@ public class Tracing {
     public static void logError(Span span, Throwable e, String event, String... fields) {
         Map<String, String> map = new LinkedHashMap<>();
         for (int i = 0; i < fields.length; i += 2) {
-            map.put(fields[i], fields[i + 2]);
+            map.put(fields[i], fields[i + 1]);
         }
         logError(span, e, event, map);
     }

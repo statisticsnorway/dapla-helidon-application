@@ -174,6 +174,12 @@ public class HelidonGrpcWebTranscoding implements Service {
                     return Http.Status.UNAUTHORIZED_401;
                 case PERMISSION_DENIED:
                     return Http.Status.FORBIDDEN_403;
+                case NOT_FOUND:
+                    return Http.Status.NOT_FOUND_404;
+                case INVALID_ARGUMENT:
+                    return Http.Status.BAD_REQUEST_400;
+                case UNIMPLEMENTED:
+                    return Http.Status.NOT_IMPLEMENTED_501;
                 default:
                     return Http.Status.INTERNAL_SERVER_ERROR_500;
             }

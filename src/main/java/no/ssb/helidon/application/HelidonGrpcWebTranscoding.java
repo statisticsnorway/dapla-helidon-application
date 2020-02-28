@@ -9,6 +9,7 @@ import io.grpc.BindableService;
 import io.grpc.Channel;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.MethodType;
+import io.grpc.StatusRuntimeException;
 import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
 import io.grpc.stub.AbstractStub;
 import io.helidon.common.http.Http;
@@ -132,11 +133,14 @@ public class HelidonGrpcWebTranscoding implements Service {
 
                                         @Override
                                         public void onFailure(Throwable t) {
+                                            Tracing.restoreTracingContext(tracerAndSpan);
                                             try {
-                                                Tracing.restoreTracingContext(tracerAndSpan);
-                                                LOG.error("while serving path " + pathPattern, t);
-                                                res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
-                                                Tracing.logError(span, t);
+                                                Http.Status httpStatus = mapToHttpStatus(t);
+                                                if (Http.Status.INTERNAL_SERVER_ERROR_500.equals(httpStatus)) {
+                                                    LOG.error("while serving path " + pathPattern, t);
+                                                    Tracing.logError(span, t);
+                                                }
+                                                res.status(httpStatus).send(t.getMessage());
                                             } finally {
                                                 span.finish();
                                             }
@@ -160,5 +164,26 @@ public class HelidonGrpcWebTranscoding implements Service {
                 }
             });
         }
+    }
+
+    private Http.Status mapToHttpStatus(Throwable t) {
+        if (t instanceof StatusRuntimeException) {
+            StatusRuntimeException ex = (StatusRuntimeException) t;
+            switch (ex.getStatus().getCode()) {
+                case UNAUTHENTICATED:
+                    return Http.Status.UNAUTHORIZED_401;
+                case PERMISSION_DENIED:
+                    return Http.Status.FORBIDDEN_403;
+                case NOT_FOUND:
+                    return Http.Status.NOT_FOUND_404;
+                case INVALID_ARGUMENT:
+                    return Http.Status.BAD_REQUEST_400;
+                case UNIMPLEMENTED:
+                    return Http.Status.NOT_IMPLEMENTED_501;
+                default:
+                    return Http.Status.INTERNAL_SERVER_ERROR_500;
+            }
+        }
+        return Http.Status.INTERNAL_SERVER_ERROR_500;
     }
 }

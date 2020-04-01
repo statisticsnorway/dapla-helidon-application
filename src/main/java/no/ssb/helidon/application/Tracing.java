@@ -12,6 +12,8 @@ import java.io.StringWriter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static java.util.Optional.ofNullable;
+
 public class Tracing {
 
     public static <T extends MessageOrBuilder> T traceInputMessage(Span span, T message) {
@@ -39,7 +41,7 @@ public class Tracing {
     public static void logError(Span span, Throwable e, String event) {
         StringWriter stringWriter = new StringWriter();
         e.printStackTrace(new PrintWriter(stringWriter));
-        span.log(Map.of("event", event, "message", e.getMessage(), "stacktrace", stringWriter.toString()));
+        span.log(Map.of("event", event, "message", ofNullable(e.getMessage()).orElse(""), "stacktrace", stringWriter.toString()));
     }
 
     public static void logError(Span span, Throwable e, String event, String... fields) {

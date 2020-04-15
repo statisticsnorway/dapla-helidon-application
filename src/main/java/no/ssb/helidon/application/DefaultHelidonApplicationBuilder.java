@@ -29,7 +29,7 @@ public abstract class DefaultHelidonApplicationBuilder implements HelidonApplica
     }
 
     public static Config createDefaultConfig() {
-        List<Supplier<ConfigSource>> configSourceSupplierList = new LinkedList<>();
+        List<Supplier<? extends ConfigSource>> configSourceSupplierList = new LinkedList<>();
         String overrideFile = System.getenv("HELIDON_CONFIG_FILE");
         if (overrideFile != null) {
             configSourceSupplierList.add(file(overrideFile).optional());

@@ -57,6 +57,9 @@ jobs:
       # Maven caching to speed up pipeline build time
       - template: maven/task-cache.yml@templates
 
+      # Test and verify
+      - template: maven/task-test-and-verify.yml@templates
+
       # Sonar-Analyze task to check code test coverage
       - template: maven/task-sonar-analyze.yml@templates
 

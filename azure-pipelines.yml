@@ -16,7 +16,7 @@ resources:
   - repository: templates
     type:       github
     name:       statisticsnorway/azure-pipelines-templates
-    ref:        refs/tags/0.0.3
+    ref:        refs/tags/0.0.5
     endpoint:   statisticsnorway (6)
 
 # Pipeline will be run on this base image
@@ -37,7 +37,7 @@ variables:
   - name:   MAVEN_OPTS
     value:  '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
 
-# Job which will run mvn build, mvn install
+# Job which will run mvn build, mvn install and Sonar Analysis (if branch is master)
 jobs:
   - job: buildTest
     displayName: 'compile deploy app'
@@ -55,14 +55,10 @@ jobs:
           mavenServiceConnections:  'mvnSsbBipPublic, mvnSsbBipReleases, mvnSsbBipSnapshots'
 
       # Maven caching to speed up pipeline build time
-      - task:           Cache@2
-        displayName:    'Cache Maven local repo'
-        inputs:
-          key:          'maven | "$(Agent.05)" | **/pom.xml'
-          restoreKeys:  |
-            maven | "$(Agent.OS)"
-            maven
-          path:         $(MAVEN_CACHE_FOLDER)
+      - template: maven/task-cache.yml@templates
+
+      # Sonar-Analyze task to check code test coverage
+      - template: maven/task-sonar-analyze.yml@templates
 
       # Deploy artifact to Nexus
       - template: maven/task-install-and-deploy-to-nexus.yml@templates

@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.helidon.applications</groupId>
         <artifactId>helidon-se</artifactId>
-        <version>1.4.1</version>
+        <version>2.0.2</version>
         <relativePath/>
     </parent>
 
@@ -19,7 +19,6 @@
         <jdk.version>11</jdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <helidon.version>1.4.1</helidon.version>
         <slf4j.version>1.7.30</slf4j.version>
     </properties>
 
@@ -44,45 +43,16 @@
         <dependency>
             <groupId>io.helidon.webserver</groupId>
             <artifactId>helidon-webserver</artifactId>
-            <version>${helidon.version}</version>
             <exclusions>
+                <exclusion>
+                    <groupId>jakarta.annotation</groupId>
+                    <artifactId>jakarta.annotation-api</artifactId>
+                </exclusion>
                 <exclusion>
                     <groupId>javax.annotation</groupId>
                     <artifactId>javax.annotation-api</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>io.helidon.grpc</groupId>
-            <artifactId>helidon-grpc-server</artifactId>
-            <version>${helidon.version}</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>grpc-core</artifactId>
-                    <groupId>io.grpc</groupId>
-                </exclusion>
-                <exclusion>
-                    <artifactId>grpc-api</artifactId>
-                    <groupId>io.grpc</groupId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.code.findbugs</groupId>
-                    <artifactId>jsr305</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>javax.annotation</groupId>
-                    <artifactId>javax.annotation-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.google.api.grpc</groupId>
-                    <artifactId>proto-google-common-protos</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>no.ssb.jpms</groupId>
-            <artifactId>jsr305-and-javax.annotation-api</artifactId>
-            <version>1.1</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -99,6 +69,16 @@
             <artifactId>logback-classic</artifactId>
             <version>1.2.3</version>
         </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>3.13.0</version>
+        </dependency>
+        <dependency>
+            <groupId>no.ssb.jpms</groupId>
+            <artifactId>jsr305-and-javax.annotation-api</artifactId>
+            <version>1.2</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -108,8 +88,29 @@
             <plugins>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <version>2.19.1</version>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>1.4.1</version>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>enforce</goal>
+                            </goals>
+                            <configuration>
+                                <rules>
+                                    <bannedDependencies>
+                                        <excludes>
+                                            <exclude>com.google.code.findbugs:jsr305
+                                            </exclude> <!-- replaced by no.ssb.jpms:jsr305-and-javax.annotation-api -->
+                                            <exclude>javax.annotation:javax.annotation-api
+                                            </exclude> <!-- replaced by no.ssb.jpms:jsr305-and-javax.annotation-api -->
+                                            <exclude>jakarta.annotation:jakarta.annotation-api
+                                            </exclude> <!-- replaced by no.ssb.jpms:jsr305-and-javax.annotation-api -->
+                                        </excludes>
+                                    </bannedDependencies>
+                                </rules>
+                            </configuration>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -124,6 +125,12 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+            </plugin>
+        </plugins>
     </build>
 
     <profiles>
@@ -159,7 +166,7 @@
                     <plugin>
                         <groupId>org.jacoco</groupId>
                         <artifactId>jacoco-maven-plugin</artifactId>
-                        <version>0.8.5</version>
+                        <version>0.8.6</version>
                         <executions>
                             <execution>
                                 <id>prepare-agent</id>

@@ -1,18 +1,14 @@
 package no.ssb.helidon.application;
 
 import ch.qos.logback.classic.util.ContextInitializer;
-import io.grpc.ManagedChannel;
-import io.helidon.grpc.server.GrpcServer;
+import io.helidon.common.reactive.Single;
 import io.helidon.webserver.WebServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.LogManager;
 
 import static java.util.Optional.ofNullable;
@@ -22,7 +18,8 @@ public abstract class DefaultHelidonApplication implements HelidonApplication {
     private static final Logger LOG;
 
     static {
-        String logbackConfigurationFile = System.getenv("LOGBACK_CONFIGURATION_FILE");
+        String logbackConfigurationFile = ofNullable(System.getProperty("logback.configuration.file"))
+                .orElseGet(() -> System.getenv("LOGBACK_CONFIGURATION_FILE"));
         if (logbackConfigurationFile != null) {
             System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, logbackConfigurationFile);
         }
@@ -34,20 +31,6 @@ public abstract class DefaultHelidonApplication implements HelidonApplication {
 
     public static void installSlf4jJulBridge() {
         // placeholder used to trigger static initializer only
-    }
-
-    public static void shutdownAndAwaitTermination(ManagedChannel managedChannel) {
-        managedChannel.shutdown();
-        try {
-            if (!managedChannel.awaitTermination(5, TimeUnit.SECONDS)) {
-                managedChannel.shutdownNow(); // Cancel currently executing tasks
-                if (!managedChannel.awaitTermination(5, TimeUnit.SECONDS))
-                    LOG.error("ManagedChannel did not terminate");
-            }
-        } catch (InterruptedException ie) {
-            managedChannel.shutdownNow(); // (Re-)Cancel if current thread also interrupted
-            Thread.currentThread().interrupt();
-        }
     }
 
     private final Map<Class<?>, Object> instanceByType = new ConcurrentHashMap<>();
@@ -62,14 +45,15 @@ public abstract class DefaultHelidonApplication implements HelidonApplication {
         return (T) instanceByType.get(clazz);
     }
 
-    public CompletionStage<HelidonApplication> start() {
-        return ofNullable(get(GrpcServer.class)).map(GrpcServer::start).orElse(CompletableFuture.completedFuture(null))
-                .thenCombine(ofNullable(get(WebServer.class)).map(WebServer::start).orElse(CompletableFuture.completedFuture(null)), (grpcServer, webServer) -> this);
+    public Single<DefaultHelidonApplication> start() {
+        return ofNullable(get(WebServer.class))
+                .map(webServer -> webServer.start().map(ws -> this))
+                .orElse(Single.just(this));
     }
 
-    public CompletionStage<HelidonApplication> stop() {
-        return ofNullable(get(WebServer.class)).map(WebServer::shutdown).orElse(CompletableFuture.completedFuture(null))
-                .thenCombine(ofNullable(get(GrpcServer.class)).map(GrpcServer::shutdown).orElse(CompletableFuture.completedFuture(null)), ((webServer, grpcServer) -> this))
-                ;
+    public Single<DefaultHelidonApplication> stop() {
+        return ofNullable(get(WebServer.class))
+                .map(webServer -> webServer.shutdown().map(ws -> this))
+                .orElse(Single.just(this));
     }
 }

@@ -4,9 +4,8 @@ module no.ssb.helidon.application {
     requires org.slf4j;
     requires logback.classic;
     requires io.helidon.webserver;
-    requires io.helidon.grpc.server;
-    requires com.google.common;
-    requires org.checkerframework.checker.qual;
+    requires io.opentracing.api;
+    requires com.google.protobuf;
 
     exports no.ssb.helidon.application;
 }

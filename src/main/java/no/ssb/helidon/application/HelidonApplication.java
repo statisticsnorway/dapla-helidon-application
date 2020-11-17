@@ -1,6 +1,6 @@
 package no.ssb.helidon.application;
 
-import java.util.concurrent.CompletionStage;
+import io.helidon.common.reactive.Single;
 
 public interface HelidonApplication {
 
@@ -8,7 +8,7 @@ public interface HelidonApplication {
 
     <T> T get(Class<T> clazz);
 
-    CompletionStage<? extends HelidonApplication> start();
+    Single<? extends HelidonApplication> start();
 
-    CompletionStage<? extends HelidonApplication> stop();
+    Single<? extends HelidonApplication> stop();
 }

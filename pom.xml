@@ -1,18 +1,16 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>io.helidon.applications</groupId>
         <artifactId>helidon-se</artifactId>
         <version>2.0.2</version>
-        <relativePath/>
+        <relativePath />
     </parent>
 
     <groupId>no.ssb.helidon</groupId>
     <artifactId>helidon-application</artifactId>
-    <version>0.4-SNAPSHOT</version>
+    <version>0.4</version>
     <name>${project.artifactId}</name>
 
     <properties>
@@ -26,7 +24,7 @@
         <connection>scm:git:git://github.com/statisticsnorway/dapla-helidon-application.git</connection>
         <developerConnection>scm:git:git@github.com:statisticsnorway/dapla-helidon-application.git</developerConnection>
         <url>https://github.com/statisticsnorway/dapla-helidon-application</url>
-        <tag>HEAD</tag>
+        <tag>helidon-application-0.4</tag>
     </scm>
 
     <repositories>

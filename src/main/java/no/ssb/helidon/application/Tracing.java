@@ -9,7 +9,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 
 import static java.util.Optional.ofNullable;
 
@@ -66,12 +65,9 @@ public class Tracing {
         tracer.scopeManager().activate(span);
     }
 
-    public static Optional<Span> spanFromHttp(ServerRequest request, String operationName) {
-        return request.spanContext()
-                .map(ctx -> request.tracer()
-                        .buildSpan(operationName)
-                        .asChildOf(ctx)
-                        .start()
-                );
+    public static Span spanFromHttp(ServerRequest request, String operationName) {
+        Tracer.SpanBuilder spanBuilder = request.tracer().buildSpan(operationName);
+        request.spanContext().ifPresent(spanBuilder::asChildOf);
+        return spanBuilder.start();
     }
 }

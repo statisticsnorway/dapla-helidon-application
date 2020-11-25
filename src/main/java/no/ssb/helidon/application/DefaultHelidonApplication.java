@@ -45,13 +45,13 @@ public abstract class DefaultHelidonApplication implements HelidonApplication {
         return (T) instanceByType.get(clazz);
     }
 
-    public Single<DefaultHelidonApplication> start() {
+    public Single<? extends HelidonApplication> start() {
         return ofNullable(get(WebServer.class))
                 .map(webServer -> webServer.start().map(ws -> this))
                 .orElse(Single.just(this));
     }
 
-    public Single<DefaultHelidonApplication> stop() {
+    public Single<? extends HelidonApplication> stop() {
         return ofNullable(get(WebServer.class))
                 .map(webServer -> webServer.shutdown().map(ws -> this))
                 .orElse(Single.just(this));

@@ -34,7 +34,7 @@ public abstract class DefaultHelidonApplicationBuilder implements HelidonApplica
     }
 
     @Override
-    public <T> HelidonApplicationBuilder override(Class<T> clazz, T instance) {
+    public HelidonApplicationBuilder override(Class<?> clazz, Object instance) {
         if (Config.class.isAssignableFrom(clazz)) {
             config = (Config) instance;
         }
